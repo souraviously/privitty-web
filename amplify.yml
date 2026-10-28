@@ -4,7 +4,11 @@ frontend:
     preBuild:
       commands:
         - nvm use 20 || nvm install 20
-        - npm ci
+        # --include=dev forces npm to install devDependencies even when
+        # NODE_ENV=production (which Amplify sets). Build tools like tailwindcss,
+        # typescript, prisma CLI, tsx, etc. live in devDependencies and are
+        # required during the build phase.
+        - npm ci --include=dev
     build:
       commands:
         # Amplify console env vars exist only at build time; Next.js server code
