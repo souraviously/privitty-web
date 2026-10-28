@@ -3,30 +3,20 @@ frontend:
   phases:
     preBuild:
       commands:
-        # Pin Node.js version (Next.js 16 requires Node 18+; use Node 20 LTS)
         - nvm use 20 || nvm install 20
-        - node --version
-        - npm --version
-        # Install all dependencies (including devDependencies needed for build)
         - npm ci
     build:
       commands:
-        # Run pending database migrations against production DB.
-        # DATABASE_URL must be set in the Amplify Console environment variables.
-        # NOTE: If your RDS instance is inside a private VPC, you must configure
-        #       Amplify to use a custom build image with VPC access, or run
-        #       migrations via a separate Lambda/CI step instead.
-        - echo "Running Prisma migrations..."
+        # Amplify console env vars exist only at build time; Next.js server code
+        # reads them at runtime from .env.production, so persist them here.
+        - env | grep -E '^(DATABASE_URL|S3_|NEXT_PUBLIC_|ENABLE_LOCAL_STORAGE_FALLBACK)' >> .env.production
         - npx prisma migrate deploy
-        # Build Next.js application (prisma generate is included in this script)
         - npm run build
   artifacts:
-    # Next.js App Router / SSR build output directory
     baseDirectory: .next
     files:
       - '**/*'
   cache:
     paths:
-      # Cache node_modules and Next.js build cache to speed up subsequent builds
       - node_modules/**/*
       - .next/cache/**/*
