@@ -11,12 +11,16 @@ frontend:
         - npm ci --include=dev
     build:
       commands:
-        # Persist build-time env vars to .env.production so the Next.js server
-        # can read them at runtime. grep exits 1 when there are no matches
-        # (e.g. vars not yet configured), so we append "|| true" to prevent
-        # that from aborting the build.
+        # Persist Amplify console env vars to .env.production so the Next.js
+        # SSR runtime can read them. grep exits 1 on zero matches, so || true
+        # prevents the build from failing when vars haven't been set yet.
         - env | grep -E '^(DATABASE_URL|S3_|NEXT_PUBLIC_|ENABLE_LOCAL_STORAGE_FALLBACK)' >> .env.production || true
-        - npx prisma migrate deploy
+        # NOTE: prisma migrate deploy is intentionally NOT run here.
+        # Amplify build servers have restricted outbound TCP so they cannot
+        # reach external databases (Neon, RDS, Supabase) on port 5432.
+        # Run migrations MANUALLY from your local machine before deploying:
+        #   export DATABASE_URL="postgresql://..."
+        #   npx prisma migrate deploy
         - npm run build
   artifacts:
     baseDirectory: .next
