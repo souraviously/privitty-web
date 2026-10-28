@@ -1,0 +1,133 @@
+@import "tailwindcss";
+
+:root {
+  --color-primary: #6750a4;
+  --color-primary-hover: #57418f;
+  --color-primary-dark: #4f378a;
+  --color-primary-fixed-dim: #cfbcff;
+  --color-card: #d2d2f3;
+  --color-background: #f8f5ff;
+  --color-surface-card: #ffffff;
+  --color-text: #17151d;
+  --color-text-secondary: #625f6b;
+  --color-border: #ddd8e8;
+  --color-secondary: #5b5c78;
+}
+
+@theme inline {
+  --color-primary: var(--color-primary);
+  --color-primary-hover: var(--color-primary-hover);
+  --color-primary-dark: var(--color-primary-dark);
+  --color-card-bg: var(--color-card);
+  --color-bg-light: var(--color-background);
+  --color-text-main: var(--color-text);
+  --color-text-sub: var(--color-text-secondary);
+  --color-border-subtle: var(--color-border);
+  --font-headline: var(--font-manrope), sans-serif;
+  --font-body: var(--font-inter), sans-serif;
+  --font-serif: var(--font-serif), Georgia, Cambria, "Times New Roman", Times, serif;
+}
+
+body {
+  background-color: var(--color-background);
+  color: var(--color-text);
+  font-family: var(--font-inter), sans-serif;
+  overflow-x: hidden;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-manrope), sans-serif;
+}
+
+/* Global typography system for italic serif emphasis */
+.font-serif-italic,
+.serif-emphasis {
+  font-family: var(--font-serif), Georgia, serif;
+  font-style: italic;
+  font-weight: 400;
+  color: #4C3298;
+}
+
+/* Premium Card Micro-interactions */
+.premium-card {
+  transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1),
+              box-shadow 0.35s cubic-bezier(0.16, 1, 0.3, 1),
+              border-color 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.premium-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 16px 32px -12px rgba(103, 80, 164, 0.12),
+              0 4px 12px -2px rgba(23, 21, 29, 0.04);
+  border-color: rgba(103, 80, 164, 0.35);
+}
+
+/* Interactive Buttons */
+.interactive-btn {
+  position: relative;
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1),
+              box-shadow 0.25s cubic-bezier(0.16, 1, 0.3, 1),
+              background-color 0.25s ease;
+}
+
+.interactive-btn:hover {
+  transform: translateY(-1.5px);
+}
+
+.interactive-btn:active {
+  transform: translateY(0.5px) scale(0.99);
+}
+
+/* Ambient Pulse for concentric rings and glows */
+@keyframes ambientBreathe {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 0.8;
+  }
+  50% {
+    transform: scale(1.03);
+    opacity: 1;
+  }
+}
+
+.ambient-concentric {
+  animation: ambientBreathe 12s ease-in-out infinite;
+  transform-origin: center;
+}
+
+/* Seamless Infinite Marquee (Right to Left) */
+@keyframes marqueeScroll {
+  0% {
+    transform: translate3d(0, 0, 0);
+  }
+  100% {
+    transform: translate3d(-50%, 0, 0);
+  }
+}
+
+.animate-marquee {
+  display: flex;
+  width: max-content;
+  animation: marqueeScroll 32s linear infinite;
+  will-change: transform;
+}
+
+.marquee-container:hover .animate-marquee {
+  animation-play-state: paused;
+}
+
+/* Respect Prefers-Reduced-Motion */
+@media (prefers-reduced-motion: reduce) {
+  *, ::before, ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  .ambient-concentric {
+    animation: none !important;
+  }
+  .premium-card:hover, .interactive-btn:hover {
+    transform: none !important;
+  }
+}

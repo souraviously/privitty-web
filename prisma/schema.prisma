@@ -1,0 +1,145 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model AdminUser {
+  id           String         @id @default(cuid())
+  email        String         @unique
+  passwordHash String
+  name         String
+  role         String         @default("ADMIN")
+  isActive     Boolean        @default(true)
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  sessions     AdminSession[]
+  auditLogs    AuditLog[]
+
+  @@map("admin_users")
+}
+
+model AdminSession {
+  id           String    @id @default(cuid())
+  sessionToken String    @unique
+  adminUserId  String
+  adminUser    AdminUser @relation(fields: [adminUserId], references: [id], onDelete: Cascade)
+  expiresAt    DateTime
+  createdAt    DateTime  @default(now())
+
+  @@index([adminUserId])
+  @@map("admin_sessions")
+}
+
+model Testimonial {
+  id             String   @id @default(cuid())
+  authorName     String
+  jobTitle       String
+  companyName    String
+  quote          String
+  rating         Int      @default(5)
+  authorPortrait String?
+  companyLogo    String?
+  displayOrder   Int      @default(0)
+  isPublished    Boolean  @default(true)
+  isFeatured     Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([isPublished, displayOrder])
+  @@map("testimonials")
+}
+
+model TeamMember {
+  id           String   @id @default(cuid())
+  name         String
+  jobTitle     String
+  bio          String?
+  photoUrl     String?
+  linkedinUrl  String?
+  twitterUrl   String?
+  otherUrl     String?
+  displayOrder Int      @default(0)
+  isPublished  Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([isPublished, displayOrder])
+  @@map("team_members")
+}
+
+model Whitepaper {
+  id               String    @id @default(cuid())
+  title            String
+  slug             String    @unique
+  shortDescription String
+  longDescription  String?
+  coverImageUrl    String?
+  fileKey          String
+  fileName         String
+  fileSize         Int
+  category         String?
+  author           String?
+  publishedAt      DateTime? @default(now())
+  displayOrder     Int       @default(0)
+  isPublished      Boolean   @default(true)
+  downloadCount    Int       @default(0)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@index([isPublished, displayOrder])
+  @@map("whitepapers")
+}
+
+model MediaAsset {
+  id         String   @id @default(cuid())
+  filename   String
+  key        String   @unique
+  mimeType   String
+  size       Int
+  url        String?
+  category   String   @default("IMAGE")
+  uploadedBy String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([category])
+  @@map("media_assets")
+}
+
+model AuditLog {
+  id          String     @id @default(cuid())
+  adminUserId String?
+  adminUser   AdminUser? @relation(fields: [adminUserId], references: [id], onDelete: SetNull)
+  adminEmail  String
+  action      String
+  targetType  String
+  targetId    String?
+  details     String?
+  ipAddress   String?
+  userAgent   String?
+  createdAt   DateTime   @default(now())
+
+  @@index([adminEmail])
+  @@index([action])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+model Partner {
+  id           String   @id @default(cuid())
+  companyName  String
+  logoUrl      String
+  websiteUrl   String?
+  displayOrder Int      @default(0)
+  isPublished  Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([isPublished, displayOrder])
+  @@map("partners")
+}
+
