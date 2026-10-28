@@ -62,9 +62,9 @@ export async function DELETE(
     ]);
 
     const activeReferences = [
-      ...testimonials.map((t) => `Testimonial: ${t.authorName}`),
-      ...teamMembers.map((m) => `Team Member: ${m.name}`),
-      ...whitepapers.map((w) => `Whitepaper: ${w.title}`),
+      ...testimonials.map((t: { authorName: string }) => `Testimonial: ${t.authorName}`),
+      ...teamMembers.map((m: { name: string }) => `Team Member: ${m.name}`),
+      ...whitepapers.map((w: { title: string }) => `Whitepaper: ${w.title}`),
     ];
 
     if (activeReferences.length > 0 && !force) {

@@ -5,6 +5,7 @@ import {
   uploadBufferToStorage,
 } from "@/app/lib/s3";
 import prisma from "@/app/lib/prisma";
+import type { MediaAsset } from "@prisma/client";
 
 export async function GET(req: NextRequest) {
   try {
@@ -42,7 +43,7 @@ export async function GET(req: NextRequest) {
 
     // Check usage across tables for each asset
     const assetsWithUsage = await Promise.all(
-      assets.map(async (asset) => {
+      assets.map(async (asset: MediaAsset) => {
         const key = asset.key;
         const url = asset.url || "";
 

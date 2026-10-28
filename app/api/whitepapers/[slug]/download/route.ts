@@ -34,7 +34,7 @@ export async function GET(
         where: { id: whitepaper.id },
         data: { downloadCount: { increment: 1 } },
       })
-      .catch((err) => console.error("Failed to increment download count:", err));
+      .catch((err: unknown) => console.error("Failed to increment download count:", err));
 
     // If file is stored in local uploads directory
     if (whitepaper.fileKey.startsWith("/uploads/") || whitepaper.fileKey.startsWith("whitepapers/")) {
