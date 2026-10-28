@@ -10,7 +10,9 @@
     "postinstall": "prisma generate",
     "db:migrate": "prisma migrate deploy",
     "db:push": "prisma db push",
-    "db:seed": "tsx prisma/seed.ts"
+    "db:seed": "tsx prisma/seed.ts",
+    "deploy:setup": "bash scripts/aws-deploy-setup.sh",
+    "deploy:teardown": "bash scripts/aws-teardown.sh"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
