@@ -10,10 +10,12 @@ import path from "path";
 import fs from "fs/promises";
 
 // AWS S3 configuration
-const region = process.env.AWS_REGION || "us-east-1";
-const bucketName = process.env.AWS_S3_BUCKET || "";
-const accessKeyId = process.env.AWS_ACCESS_KEY_ID;
-const secretAccessKey = process.env.AWS_SECRET_ACCESS_KEY;
+// Note: "AWS_" prefix is reserved by AWS Amplify, so we use "S3_" prefixed names.
+// For local dev, both S3_* and the legacy AWS_* names are accepted as fallbacks.
+const region = process.env.S3_REGION || process.env.AWS_REGION || "us-east-1";
+const bucketName = process.env.S3_BUCKET || process.env.AWS_S3_BUCKET || "";
+const accessKeyId = process.env.S3_ACCESS_KEY_ID || process.env.AWS_ACCESS_KEY_ID;
+const secretAccessKey = process.env.S3_SECRET_ACCESS_KEY || process.env.AWS_SECRET_ACCESS_KEY;
 const isLocalStorageFallback =
   process.env.ENABLE_LOCAL_STORAGE_FALLBACK === "true" || !bucketName;
 
@@ -180,7 +182,7 @@ export async function uploadBufferToStorage(
     })
   );
 
-  const customDomain = process.env.AWS_S3_CUSTOM_DOMAIN;
+  const customDomain = process.env.S3_CUSTOM_DOMAIN || process.env.AWS_S3_CUSTOM_DOMAIN;
   const publicUrl = customDomain
     ? `https://${customDomain}/${fileKey}`
     : `https://${bucketName}.s3.${region}.amazonaws.com/${fileKey}`;

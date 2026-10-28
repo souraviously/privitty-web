@@ -134,20 +134,24 @@ read -r -p "Proceed? [y/N] " confirm
 # ─── 2. Create S3 Bucket ──────────────────────────────────────────────────────
 header "Creating S3 bucket: $S3_BUCKET_NAME"
 
-# us-east-1 requires no LocationConstraint; all other regions do
-if [[ "$AWS_REGION" == "us-east-1" ]]; then
-  aws s3api create-bucket \
-    --bucket "$S3_BUCKET_NAME" \
-    --region "$AWS_REGION" \
-    --output text > /dev/null
+if aws s3api head-bucket --bucket "$S3_BUCKET_NAME" 2>/dev/null; then
+  warn "Bucket '$S3_BUCKET_NAME' already exists — skipping creation."
 else
-  aws s3api create-bucket \
-    --bucket "$S3_BUCKET_NAME" \
-    --region "$AWS_REGION" \
-    --create-bucket-configuration LocationConstraint="$AWS_REGION" \
-    --output text > /dev/null
+  # us-east-1 requires no LocationConstraint; all other regions do
+  if [[ "$AWS_REGION" == "us-east-1" ]]; then
+    aws s3api create-bucket \
+      --bucket "$S3_BUCKET_NAME" \
+      --region "$AWS_REGION" \
+      --output text > /dev/null
+  else
+    aws s3api create-bucket \
+      --bucket "$S3_BUCKET_NAME" \
+      --region "$AWS_REGION" \
+      --create-bucket-configuration LocationConstraint="$AWS_REGION" \
+      --output text > /dev/null
+  fi
+  success "Bucket created: s3://$S3_BUCKET_NAME"
 fi
-success "Bucket created: s3://$S3_BUCKET_NAME"
 
 # Block all public access (files served via presigned URLs only)
 aws s3api put-public-access-block \
@@ -223,49 +227,74 @@ aws iam put-user-policy \
   --policy-document "$POLICY_DOC"
 success "Scoped IAM policy attached"
 
-# Generate access keys
-info "Generating IAM access keys..."
-KEY_OUTPUT=$(aws iam create-access-key --user-name "$IAM_USER_NAME" --output json)
-AWS_ACCESS_KEY_ID=$(echo "$KEY_OUTPUT"   | jq -r '.AccessKey.AccessKeyId')
-AWS_SECRET_ACCESS_KEY=$(echo "$KEY_OUTPUT" | jq -r '.AccessKey.SecretAccessKey')
-success "IAM access keys generated (stored only in Amplify env vars)"
+# Generate access keys (only if none exist yet)
+EXISTING_KEYS=$(aws iam list-access-keys --user-name "$IAM_USER_NAME" --output json | jq -r '.AccessKeyMetadata | length')
+if [[ "$EXISTING_KEYS" -gt 0 ]]; then
+  warn "IAM user already has $EXISTING_KEYS access key(s)."
+  warn "Delete them first if you need new ones: aws iam delete-access-key --user-name $IAM_USER_NAME --access-key-id <ID>"
+  # Prompt to continue with existing keys or abort
+  read -r -p "  Enter existing AWS_ACCESS_KEY_ID to reuse (or press Enter to create new): " REUSE_KEY_ID
+  if [[ -n "$REUSE_KEY_ID" ]]; then
+    AWS_ACCESS_KEY_ID="$REUSE_KEY_ID"
+    prompt_secret AWS_SECRET_ACCESS_KEY "Existing AWS_SECRET_ACCESS_KEY for that key"
+  else
+    info "Deleting existing keys and creating fresh ones..."
+    aws iam list-access-keys --user-name "$IAM_USER_NAME" --output json \
+      | jq -r '.AccessKeyMetadata[].AccessKeyId' \
+      | while read -r kid; do
+          aws iam delete-access-key --user-name "$IAM_USER_NAME" --access-key-id "$kid"
+        done
+    KEY_OUTPUT=$(aws iam create-access-key --user-name "$IAM_USER_NAME" --output json)
+    AWS_ACCESS_KEY_ID=$(echo "$KEY_OUTPUT"     | jq -r '.AccessKey.AccessKeyId')
+    AWS_SECRET_ACCESS_KEY=$(echo "$KEY_OUTPUT" | jq -r '.AccessKey.SecretAccessKey')
+    success "IAM access keys regenerated"
+  fi
+else
+  info "Generating IAM access keys..."
+  KEY_OUTPUT=$(aws iam create-access-key --user-name "$IAM_USER_NAME" --output json)
+  AWS_ACCESS_KEY_ID=$(echo "$KEY_OUTPUT"     | jq -r '.AccessKey.AccessKeyId')
+  AWS_SECRET_ACCESS_KEY=$(echo "$KEY_OUTPUT" | jq -r '.AccessKey.SecretAccessKey')
+  success "IAM access keys generated (stored only in Amplify env vars)"
+fi
 
 # ─── 4. Create Amplify App ────────────────────────────────────────────────────
 header "Creating Amplify Hosting app: $AMPLIFY_APP_NAME"
 
-# Build the env vars payload for Amplify
+# Build the env vars payload for Amplify.
+# IMPORTANT: Amplify reserves the "AWS_" prefix — we use "S3_" prefixed names instead.
+# The app code reads S3_* first and falls back to AWS_* for local dev compatibility.
 ENV_VARS=$(jq -n \
-  --arg DATABASE_URL                  "$DATABASE_URL" \
-  --arg AWS_REGION                    "$AWS_REGION" \
-  --arg AWS_S3_BUCKET                 "$S3_BUCKET_NAME" \
-  --arg AWS_ACCESS_KEY_ID             "$AWS_ACCESS_KEY_ID" \
-  --arg AWS_SECRET_ACCESS_KEY         "$AWS_SECRET_ACCESS_KEY" \
-  --arg AWS_S3_CUSTOM_DOMAIN          "" \
-  --arg NEXT_PUBLIC_AWS_S3_BUCKET     "$S3_BUCKET_NAME" \
-  --arg NEXT_PUBLIC_AWS_REGION        "$AWS_REGION" \
-  --arg NEXT_PUBLIC_AWS_S3_CUSTOM_DOMAIN "" \
+  --arg DATABASE_URL                "$DATABASE_URL" \
+  --arg S3_REGION                   "$AWS_REGION" \
+  --arg S3_BUCKET                   "$S3_BUCKET_NAME" \
+  --arg S3_ACCESS_KEY_ID            "$AWS_ACCESS_KEY_ID" \
+  --arg S3_SECRET_ACCESS_KEY        "$AWS_SECRET_ACCESS_KEY" \
+  --arg S3_CUSTOM_DOMAIN            "" \
+  --arg NEXT_PUBLIC_S3_BUCKET       "$S3_BUCKET_NAME" \
+  --arg NEXT_PUBLIC_S3_REGION       "$AWS_REGION" \
+  --arg NEXT_PUBLIC_S3_CUSTOM_DOMAIN "" \
   --arg ENABLE_LOCAL_STORAGE_FALLBACK "false" \
-  --arg ADMIN_INITIAL_EMAIL           "$ADMIN_EMAIL" \
-  --arg ADMIN_INITIAL_PASSWORD        "$ADMIN_PASSWORD" \
-  --arg ADMIN_INITIAL_NAME            "$ADMIN_NAME" \
-  --arg NODE_ENV                      "production" \
-  --arg NODE_OPTIONS                  "--max-old-space-size=4096" \
+  --arg ADMIN_INITIAL_EMAIL         "$ADMIN_EMAIL" \
+  --arg ADMIN_INITIAL_PASSWORD      "$ADMIN_PASSWORD" \
+  --arg ADMIN_INITIAL_NAME          "$ADMIN_NAME" \
+  --arg NODE_ENV                    "production" \
+  --arg NODE_OPTIONS                "--max-old-space-size=4096" \
   '{
-    DATABASE_URL:                    $DATABASE_URL,
-    AWS_REGION:                      $AWS_REGION,
-    AWS_S3_BUCKET:                   $AWS_S3_BUCKET,
-    AWS_ACCESS_KEY_ID:               $AWS_ACCESS_KEY_ID,
-    AWS_SECRET_ACCESS_KEY:           $AWS_SECRET_ACCESS_KEY,
-    AWS_S3_CUSTOM_DOMAIN:            $AWS_S3_CUSTOM_DOMAIN,
-    NEXT_PUBLIC_AWS_S3_BUCKET:       $NEXT_PUBLIC_AWS_S3_BUCKET,
-    NEXT_PUBLIC_AWS_REGION:          $NEXT_PUBLIC_AWS_REGION,
-    NEXT_PUBLIC_AWS_S3_CUSTOM_DOMAIN: $NEXT_PUBLIC_AWS_S3_CUSTOM_DOMAIN,
-    ENABLE_LOCAL_STORAGE_FALLBACK:   $ENABLE_LOCAL_STORAGE_FALLBACK,
-    ADMIN_INITIAL_EMAIL:             $ADMIN_INITIAL_EMAIL,
-    ADMIN_INITIAL_PASSWORD:          $ADMIN_INITIAL_PASSWORD,
-    ADMIN_INITIAL_NAME:              $ADMIN_INITIAL_NAME,
-    NODE_ENV:                        $NODE_ENV,
-    NODE_OPTIONS:                    $NODE_OPTIONS
+    DATABASE_URL:                  $DATABASE_URL,
+    S3_REGION:                     $S3_REGION,
+    S3_BUCKET:                     $S3_BUCKET,
+    S3_ACCESS_KEY_ID:              $S3_ACCESS_KEY_ID,
+    S3_SECRET_ACCESS_KEY:          $S3_SECRET_ACCESS_KEY,
+    S3_CUSTOM_DOMAIN:              $S3_CUSTOM_DOMAIN,
+    NEXT_PUBLIC_S3_BUCKET:         $NEXT_PUBLIC_S3_BUCKET,
+    NEXT_PUBLIC_S3_REGION:         $NEXT_PUBLIC_S3_REGION,
+    NEXT_PUBLIC_S3_CUSTOM_DOMAIN:  $NEXT_PUBLIC_S3_CUSTOM_DOMAIN,
+    ENABLE_LOCAL_STORAGE_FALLBACK: $ENABLE_LOCAL_STORAGE_FALLBACK,
+    ADMIN_INITIAL_EMAIL:           $ADMIN_INITIAL_EMAIL,
+    ADMIN_INITIAL_PASSWORD:        $ADMIN_INITIAL_PASSWORD,
+    ADMIN_INITIAL_NAME:            $ADMIN_INITIAL_NAME,
+    NODE_ENV:                      $NODE_ENV,
+    NODE_OPTIONS:                  $NODE_OPTIONS
   }')
 
 APP_OUTPUT=$(aws amplify create-app \
