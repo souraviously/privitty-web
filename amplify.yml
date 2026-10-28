@@ -11,9 +11,11 @@ frontend:
         - npm ci --include=dev
     build:
       commands:
-        # Amplify console env vars exist only at build time; Next.js server code
-        # reads them at runtime from .env.production, so persist them here.
-        - env | grep -E '^(DATABASE_URL|S3_|NEXT_PUBLIC_|ENABLE_LOCAL_STORAGE_FALLBACK)' >> .env.production
+        # Persist build-time env vars to .env.production so the Next.js server
+        # can read them at runtime. grep exits 1 when there are no matches
+        # (e.g. vars not yet configured), so we append "|| true" to prevent
+        # that from aborting the build.
+        - env | grep -E '^(DATABASE_URL|S3_|NEXT_PUBLIC_|ENABLE_LOCAL_STORAGE_FALLBACK)' >> .env.production || true
         - npx prisma migrate deploy
         - npm run build
   artifacts:
