@@ -3,13 +3,11 @@
 // It is NOT used by the Next.js runtime — the app reads DATABASE_URL directly
 // from process.env via the schema.prisma datasource block.
 //
-// Do NOT add a datasource.url override here; it conflicts with schema.prisma's
-// env("DATABASE_URL") validation and causes "resolved to an empty string" errors.
-// DATABASE_URL must be present in the environment when running migrate/studio.
-//
-// prisma generate (postinstall) does NOT need DATABASE_URL — it only reads the
-// schema shape, not the connection. The placeholder in schema.prisma's provider
-// block satisfies the CLI's schema-load step without a real connection.
+// When prisma.config.ts is present, Prisma 6 skips automatic .env loading.
+// We restore that by explicitly calling dotenv/config here so that
+// `prisma migrate deploy` and `prisma studio` pick up DATABASE_URL from .env.
+// (prisma generate does not need DATABASE_URL — it only reads the schema shape.)
+import "dotenv/config";
 import { defineConfig } from "prisma/config";
 
 export default defineConfig({
