@@ -22,6 +22,10 @@ frontend:
         #   export DATABASE_URL="postgresql://..."
         #   npx prisma migrate deploy
         - npm run build
+        - echo "Checking generated CSS files..."
+        - find .next -type f -name "*.css" | head -30
+        - echo "Checking generated CSS size..."
+        - find .next -type f -name "*.css" -exec wc -c {} \; | head -30
   artifacts:
     baseDirectory: .next
     files:
