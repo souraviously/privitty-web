@@ -29,33 +29,63 @@ interface PageProps {
 }
 
 export async function generateStaticParams() {
-  const whitepapers = await getPublishedWhitepapers();
-  return whitepapers.map((w) => ({ slug: w.slug }));
+  try {
+    const whitepapers = await getPublishedWhitepapers();
+    if (whitepapers.length === 0) {
+      // Next.js Cache Components requires at least one parameter set at build time
+      // to perform validation of dynamic access. Return a reserved placeholder slug
+      // that cleanly triggers notFound() when accessed.
+      return [{ slug: "_sample" }];
+    }
+    return whitepapers.map((w) => ({ slug: w.slug }));
+  } catch (error) {
+    console.error("[generateStaticParams] Database query failed, using fallback parameter:", error);
+    return [{ slug: "_sample" }];
+  }
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { slug } = await params;
-  const paper = await getPublishedWhitepaperBySlug(slug);
-
-  if (!paper) {
+  if (slug === "_sample") {
     return {
       title: "Whitepaper Not Found | Privitty",
+      robots: { index: false, follow: false },
     };
   }
 
-  return {
-    title: `${paper.title} | Privitty Whitepapers`,
-    description: paper.shortDescription,
-    openGraph: {
+  try {
+    const paper = await getPublishedWhitepaperBySlug(slug);
+
+    if (!paper) {
+      return {
+        title: "Whitepaper Not Found | Privitty",
+        robots: { index: false, follow: false },
+      };
+    }
+
+    return {
       title: `${paper.title} | Privitty Whitepapers`,
       description: paper.shortDescription,
-      type: "article",
-    },
-  };
+      openGraph: {
+        title: `${paper.title} | Privitty Whitepapers`,
+        description: paper.shortDescription,
+        type: "article",
+      },
+    };
+  } catch {
+    return {
+      title: "Whitepaper | Privitty",
+      robots: { index: false, follow: false },
+    };
+  }
 }
 
 export default async function WhitepaperDetailPage({ params }: PageProps) {
   const { slug } = await params;
+  if (slug === "_sample") {
+    notFound();
+  }
+
   const paper = await getPublishedWhitepaperBySlug(slug);
 
   if (!paper) {

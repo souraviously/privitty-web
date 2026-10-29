@@ -109,6 +109,7 @@ export async function POST(req: NextRequest) {
     });
 
     revalidatePath("/whitepapers");
+    revalidatePath(`/whitepapers/${whitepaper.slug}`);
     revalidatePath("/");
 
     return NextResponse.json({ success: true, whitepaper }, { status: 201 });

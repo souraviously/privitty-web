@@ -131,6 +131,7 @@ export async function DELETE(
     });
 
     revalidatePath("/whitepapers");
+    revalidatePath(`/whitepapers/${existing.slug}`);
     revalidatePath("/");
 
     return NextResponse.json({ success: true });

@@ -55,6 +55,13 @@ export interface PublicPartner {
   createdAt: Date;
 }
 
+export class DatabaseQueryError extends Error {
+  constructor(message: string, cause?: unknown) {
+    super(message, { cause });
+    this.name = "DatabaseQueryError";
+  }
+}
+
 /**
  * Fetch all published testimonials from PostgreSQL ordered by displayOrder.
  * Unpublished testimonials are strictly excluded.
@@ -84,7 +91,7 @@ export async function getPublishedTestimonials(): Promise<PublicTestimonial[]> {
     return testimonials;
   } catch (error) {
     console.error("[getPublishedTestimonials] Database query failed:", error);
-    return [];
+    throw new DatabaseQueryError("Failed to fetch published testimonials from database", error);
   }
 }
 
@@ -116,7 +123,7 @@ export async function getPublishedTeamMembers(): Promise<PublicTeamMember[]> {
     return teamMembers;
   } catch (error) {
     console.error("[getPublishedTeamMembers] Database query failed:", error);
-    return [];
+    throw new DatabaseQueryError("Failed to fetch published team members from database", error);
   }
 }
 
@@ -154,7 +161,7 @@ export async function getPublishedWhitepapers(options?: {
     return whitepapers;
   } catch (error) {
     console.error("[getPublishedWhitepapers] Database query failed:", error);
-    return [];
+    throw new DatabaseQueryError("Failed to fetch published whitepapers from database", error);
   }
 }
 
@@ -192,7 +199,7 @@ export async function getPublishedWhitepaperBySlug(
     return whitepaper;
   } catch (error) {
     console.error(`[getPublishedWhitepaperBySlug] Database query failed for slug "${slug}":`, error);
-    return null;
+    throw new DatabaseQueryError(`Failed to fetch published whitepaper for slug "${slug}"`, error);
   }
 }
 
@@ -220,7 +227,7 @@ export async function getPublishedPartners(): Promise<PublicPartner[]> {
     return partners;
   } catch (error) {
     console.error("[getPublishedPartners] Database query failed:", error);
-    return [];
+    throw new DatabaseQueryError("Failed to fetch published partners from database", error);
   }
 }
 
