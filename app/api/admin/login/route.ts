@@ -12,7 +12,10 @@ import { LoginSchema } from "@/app/lib/validation";
 import prisma from "@/app/lib/prisma";
 
 export async function POST(req: NextRequest) {
+  let stage = "initialization";
+
   try {
+    stage = "getClientIp";
     const ip = await getClientIp();
     const rateCheck = checkLoginRateLimit(ip);
 
@@ -21,7 +24,7 @@ export async function POST(req: NextRequest) {
         {
           error: `Too many failed login attempts. Please wait ${rateCheck.waitSeconds} seconds before trying again.`,
         },
-        { status: 429 }
+        { status: 429 },
       );
     }
 
@@ -33,13 +36,18 @@ export async function POST(req: NextRequest) {
     const parseResult = LoginSchema.safeParse(body);
     if (!parseResult.success) {
       return NextResponse.json(
-        { error: parseResult.error.issues[0]?.message || "Invalid credentials format" },
-        { status: 400 }
+        {
+          error:
+            parseResult.error.issues[0]?.message ||
+            "Invalid credentials format",
+        },
+        { status: 400 },
       );
     }
 
     const { email, password } = parseResult.data;
 
+    stage = "prisma.adminUser.findUnique";
     const admin = await prisma.adminUser.findUnique({
       where: { email: email.toLowerCase() },
     });
@@ -52,9 +60,13 @@ export async function POST(req: NextRequest) {
         targetType: "AUTH",
         details: { reason: "User not found or inactive", ip },
       });
-      return NextResponse.json({ error: "Invalid email or password" }, { status: 401 });
+      return NextResponse.json(
+        { error: "Invalid email or password" },
+        { status: 401 },
+      );
     }
 
+    stage = "verifyPassword";
     const passwordValid = await verifyPassword(password, admin.passwordHash);
     if (!passwordValid) {
       recordFailedLogin(ip);
@@ -65,13 +77,18 @@ export async function POST(req: NextRequest) {
         targetType: "AUTH",
         details: { reason: "Incorrect password", ip },
       });
-      return NextResponse.json({ error: "Invalid email or password" }, { status: 401 });
+      return NextResponse.json(
+        { error: "Invalid email or password" },
+        { status: 401 },
+      );
     }
 
     // Success: reset rate limit & issue session
+    stage = "createAdminSession";
     resetLoginRateLimit(ip);
     await createAdminSession(admin.id);
 
+    stage = "recordAuditLog";
     await recordAuditLog({
       adminEmail: admin.email,
       adminUserId: admin.id,
@@ -90,7 +107,11 @@ export async function POST(req: NextRequest) {
       },
     });
   } catch (err: unknown) {
-    console.error("Login route error:", err);
-    return NextResponse.json({ error: "Internal authentication error" }, { status: 500 });
+    console.error("Admin login failed at stage:", stage, err);
+
+    return NextResponse.json(
+      { error: "Internal authentication error" },
+      { status: 500 },
+    );
   }
 }
