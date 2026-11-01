@@ -330,7 +330,9 @@ success "Branch '$GITHUB_BRANCH' configured with auto-deploy on push"
 header "Running Prisma migrations and seed"
 
 info "Installing dependencies locally (for prisma CLI)..."
-npm ci --prefer-offline --silent
+# DATABASE_URL must be exported here: prisma.config.ts is loaded during
+# the postinstall hook (prisma generate) and it calls env("DATABASE_URL").
+DATABASE_URL="$DATABASE_URL" npm ci --prefer-offline --silent
 
 info "Deploying pending migrations to production DB..."
 DATABASE_URL="$DATABASE_URL" npx prisma migrate deploy
