@@ -88,7 +88,18 @@ export default function ImageUploadField({
       });
 
       if (!uploadRes.ok) {
-        throw new Error(`Upload failed with status ${uploadRes.status}`);
+        let errorDetail = `Upload failed with status ${uploadRes.status}`;
+        try {
+          const errBody = await uploadRes.json();
+          if (errBody?.error) {
+            errorDetail = errBody.error;
+          }
+        } catch {
+          // If not JSON, try text
+          const errText = await uploadRes.text().catch(() => "");
+          if (errText) errorDetail = errText;
+        }
+        throw new Error(errorDetail);
       }
 
       // 3. Save the resulting fileKey in PostgreSQL form state

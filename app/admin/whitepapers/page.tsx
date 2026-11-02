@@ -95,7 +95,7 @@ export default function AdminWhitepapersPage() {
   }, [search, statusFilter]);
 
   useEffect(() => {
-    fetchWhitepapers();
+    fetchWhitepapers(); // eslint-disable-line react-hooks/set-state-in-effect -- data-fetch on filter change
   }, [fetchWhitepapers]);
 
   function generateSlug(text: string) {

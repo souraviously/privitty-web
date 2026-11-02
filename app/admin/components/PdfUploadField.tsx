@@ -116,7 +116,17 @@ export default function PdfUploadField({
       });
 
       if (!uploadRes.ok) {
-        throw new Error(`Upload failed with status ${uploadRes.status}`);
+        let errorDetail = `Upload failed with status ${uploadRes.status}`;
+        try {
+          const errBody = await uploadRes.json();
+          if (errBody?.error) {
+            errorDetail = errBody.error;
+          }
+        } catch {
+          const errText = await uploadRes.text().catch(() => "");
+          if (errText) errorDetail = errText;
+        }
+        throw new Error(errorDetail);
       }
 
       setUploadProgress("Upload complete!");

@@ -1,5 +1,5 @@
 import { S3Client, ListObjectsV2Command } from "@aws-sdk/client-s3";
-import { getS3Client, deleteStorageObject } from "./s3";
+import { getS3Client, deleteStorageObject, getStorageConfig } from "./s3";
 import prisma from "./prisma";
 import fs from "fs/promises";
 import path from "path";
@@ -15,10 +15,6 @@ const CMS_MANAGED_PREFIXES = [
   "media/",
   "partners/",
 ] as const;
-
-const isLocalStorageFallback =
-  process.env.ENABLE_LOCAL_STORAGE_FALLBACK === "true" ||
-  !(process.env.S3_BUCKET || process.env.AWS_S3_BUCKET);
 
 /**
  * Checks if a storage key is referenced by any database record.
@@ -249,8 +245,9 @@ export interface StorageFileInfo {
  */
 export async function listCmsManagedFiles(): Promise<StorageFileInfo[]> {
   const files: StorageFileInfo[] = [];
+  const config = getStorageConfig();
 
-  if (isLocalStorageFallback) {
+  if (config.isLocalStorageFallback) {
     // Scan local uploads directory
     const uploadsDir = path.join(process.cwd(), "public", "uploads");
 
@@ -276,7 +273,8 @@ export async function listCmsManagedFiles(): Promise<StorageFileInfo[]> {
   } else {
     // List from S3
     const client: S3Client = getS3Client();
-    const bucketName = process.env.S3_BUCKET || process.env.AWS_S3_BUCKET || "";
+    const bucketName = config.bucketName;
+    if (!bucketName) return [];
 
     for (const prefix of CMS_MANAGED_PREFIXES) {
       let continuationToken: string | undefined;
