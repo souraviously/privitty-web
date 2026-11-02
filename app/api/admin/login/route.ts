@@ -13,7 +13,6 @@ import prisma from "@/app/lib/prisma";
 
 export async function POST(req: NextRequest) {
   let stage = "initialization";
-
   try {
     stage = "getClientIp";
     const ip = await getClientIp();
@@ -86,6 +85,7 @@ export async function POST(req: NextRequest) {
     // Success: reset rate limit & issue session
     stage = "createAdminSession";
     resetLoginRateLimit(ip);
+    stage = "createAdminSession";
     await createAdminSession(admin.id);
 
     stage = "recordAuditLog";
