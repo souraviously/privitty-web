@@ -12,7 +12,9 @@ import { LoginSchema } from "@/app/lib/validation";
 import prisma from "@/app/lib/prisma";
 
 export async function POST(req: NextRequest) {
+  let stage = "initialization";
   try {
+    stage = "getClientIp";
     const ip = await getClientIp();
     const rateCheck = checkLoginRateLimit(ip);
 
@@ -40,6 +42,7 @@ export async function POST(req: NextRequest) {
 
     const { email, password } = parseResult.data;
 
+    stage = "prisma.adminUser.findUnique";
     const admin = await prisma.adminUser.findUnique({
       where: { email: email.toLowerCase() },
     });
@@ -55,6 +58,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Invalid email or password" }, { status: 401 });
     }
 
+    stage = "verifyPassword";
     const passwordValid = await verifyPassword(password, admin.passwordHash);
     if (!passwordValid) {
       recordFailedLogin(ip);
@@ -70,8 +74,10 @@ export async function POST(req: NextRequest) {
 
     // Success: reset rate limit & issue session
     resetLoginRateLimit(ip);
+    stage = "createAdminSession";
     await createAdminSession(admin.id);
 
+    stage = "recordAuditLog";
     await recordAuditLog({
       adminEmail: admin.email,
       adminUserId: admin.id,
@@ -90,7 +96,11 @@ export async function POST(req: NextRequest) {
       },
     });
   } catch (err: unknown) {
-    console.error("Login route error:", err);
-    return NextResponse.json({ error: "Internal authentication error" }, { status: 500 });
+    console.error("Admin login failed at stage:", stage, err);
+  
+    return NextResponse.json(
+      { error: "Internal authentication error" },
+      { status: 500 }
+    );
   }
 }
