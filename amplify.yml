@@ -4,32 +4,35 @@ frontend:
     preBuild:
       commands:
         - nvm use 20 || nvm install 20
-        # --include=dev forces npm to install devDependencies even when
-        # NODE_ENV=production (which Amplify sets). Build tools like tailwindcss,
-        # typescript, prisma CLI, tsx, etc. live in devDependencies and are
-        # required during the build phase.
         - npm ci --include=dev
+
     build:
       commands:
-        # Persist Amplify console env vars to .env.production so the Next.js
-        # SSR runtime can read them. grep exits 1 on zero matches, so || true
-        # prevents the build from failing when vars haven't been set yet.
+        # Persist Amplify environment variables
         - env | grep -E '^(DATABASE_URL|S3_|NEXT_PUBLIC_|ENABLE_LOCAL_STORAGE_FALLBACK)' >> .env.production || true
-        # NOTE: prisma migrate deploy is intentionally NOT run here.
-        # Amplify build servers have restricted outbound TCP so they cannot
-        # reach external databases (Neon, RDS, Supabase) on port 5432.
-        # Run migrations MANUALLY from your local machine before deploying:
-        #   export DATABASE_URL="postgresql://..."
-        #   npx prisma migrate deploy
+
+        # Build Next.js application
         - npm run build
+
+        # Verify generated CSS
         - echo "Checking generated CSS files..."
         - find .next -type f -name "*.css" | head -30
         - echo "Checking generated CSS size..."
         - find .next -type f -name "*.css" -exec wc -c {} \; | head -30
+
+        # Remove build cache before deployment packaging
+        - rm -rf .next/cache
+
+        # Check final artifact size
+        - echo "Final production artifact size:"
+        - du -sh .next
+        - du -sh .next/*
+
   artifacts:
     baseDirectory: .next
     files:
       - '**/*'
+
   cache:
     paths:
       - node_modules/**/*
