@@ -2,14 +2,14 @@
 
 import React, { useRef, useState } from "react";
 import Image from "next/image";
-import { Upload, X, RefreshCw, ImageIcon, Loader2 } from "lucide-react";
+import { Upload, X, RefreshCw, Loader2 } from "lucide-react";
 import { resolveAssetUrl } from "@/app/lib/media";
 
 interface ImageUploadFieldProps {
   label: string;
   value: string | null;
   onChange: (value: string | null) => void;
-  folder: "testimonials" | "partners" | "team" | "media";
+  folder: "testimonials" | "partners" | "team" | "media" | "whitepapers";
   aspectRatio?: "square" | "wide";
   helperText?: string;
 }
